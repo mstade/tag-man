@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Prisetiketter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Prisetiketter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style id="page-size">@page { size: 210mm 297mm; }</style>
+<style>
+/* ───────────── App UI ───────────── */
+:root {
+  --bg: #e9ecf0;
+  --panel: #ffffff;
+  --ink: #1b1f24;
+  --muted: #677180;
+  --line: #d8dde4;
+  --field: #f5f7f9;
+  --danger: #b42318;
+  /* Tag style, overridden from the settings panel */
+  --tag-bg: #000000;
+  --tag-fg: #ffffff;
+  --tag-font: "Open Sans", sans-serif;
+  --fs-name: 22;
+  --fs-description: 18;
+  --fs-producer: 18;
+  --fs-size: 18;
+  --fs-whole: 55;
+  --fs-fraction: 22;
+  --fs-unit: 15;
+  --paper-w: 210;
+  --paper-h: 297;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --panel: #1b1f25;
+    --ink: #e9ecef;
+    --muted: #98a2ae;
+    --line: #2d333b;
+    --field: #232830;
+    --danger: #f97066;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: "Open Sans", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(340px, 440px) 1fr;
+  height: 100dvh;
+}
+
+.editor {
+  overflow: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 0 16px 24px max(16px, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--panel);
+  padding: max(14px, env(safe-area-inset-top)) 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 700; }
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lang {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+
+  button {
+    font: inherit; font-size: 13px; font-weight: 700;
+    min-width: 40px; min-height: 32px;
+    border: 0; border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .15); }
+}
+
+.btn {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--ink);
+  cursor: pointer;
+
+  &.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  &.danger { color: var(--danger); }
+  &:active { transform: translateY(1px); }
+}
+
+.settings {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+
+  summary { font-weight: 600; cursor: pointer; }
+  &[open] summary { margin-bottom: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 14px; }
+  input[type=number] { width: 80px; }
+  select { width: 60%; }
+  input[type=color] { width: 64px; padding: 3px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 6px; }
+  legend { font-weight: 600; font-size: 14px; padding: 0; margin-bottom: 8px; }
+  .sizes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .sizes .row { margin: 0; }
+  .sizes input { width: 72px; }
+}
+
+select {
+  font: inherit;
+  font-size: 16px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+}
+
+.hint { color: var(--muted); font-size: 13px; margin: 6px 0 10px; }
+
+input {
+  font: inherit;
+  font-size: 16px; /* prevents iOS zoom-on-focus */
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+}
+input:focus { outline: 2px solid color-mix(in srgb, var(--ink) 40%, transparent); outline-offset: 0; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  container-type: inline-size;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.card-index { font-weight: 700; color: var(--muted); min-width: 2.5ch; }
+
+
+.card-actions {
+  display: flex; gap: 4px; margin-left: auto;
+  button {
+    font: inherit; font-size: 13px; font-weight: 600;
+    padding: 6px 8px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .danger { color: var(--danger); }
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+
+  label { display: grid; gap: 3px; font-size: 12px; font-weight: 600; color: var(--muted); grid-column: span 6; }
+  .w4 { grid-column: span 4; }
+  .w2 { grid-column: span 2; }
+  .w3 { grid-column: span 3; }
+}
+@container (max-width: 300px) {
+  .fields .w4, .fields .w2, .fields .w3 { grid-column: span 6; }
+}
+
+.add-bottom { width: 100%; }
+
+.preview {
+  overflow: auto;
+  padding: 0 24px 40px;
+  overscroll-behavior: contain;
+}
+
+.preview-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(14px, env(safe-area-inset-top)) 0 12px;
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--muted);
+}
+#warn { color: var(--danger); font-weight: 600; }
+
+/* ───────────── Paper sheets ───────────── */
+.pages {
+  zoom: var(--zoom, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.page-label { font-size: 13px; color: var(--muted); margin-bottom: -20px; align-self: center; }
+
+/* Everything on a sheet is sized in --mm, which equals 1mm on screen and
+   shrinks with the page in print so the whole sheet fits inside the
+   printer's native margins. */
+.page {
+  width: calc(var(--paper-w) * 1mm);
+  aspect-ratio: var(--paper-w) / var(--paper-h);
+  container-type: inline-size;
+  background: #fff;
+  box-shadow: 0 2px 12px rgb(0 0 0 / .18);
+  overflow: hidden;
+  flex: none;
+}
+
+.sheet {
+  --mm: calc(100cqw / var(--paper-w));
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm);
+  width: 100%;
+  height: 100%;
+  outline: 1px dashed rgb(0 0 0 / .12);
+}
+.row { display: flex; gap: var(--mm); }
+
+.measure {
+  --mm: 1mm;
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ───────────── Price tag (from price-tags.css) ───────────── */
+.price-tag {
+  --pt: calc(var(--mm, 1mm) * 0.3527778);
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--mm, 1mm));
+  width: max-content;
+  font-family: var(--tag-font);
+  font-optical-sizing: auto;
+  font-weight: normal;
+  font-style: normal;
+}
+
+.price-tag :is(p, span) {
+  margin: 0;
+  padding: 0;
+  text-box: trim-both cap alphabetic;
+  white-space: nowrap;
+  text-wrap: nowrap;
+  line-height: 0.8;
+}
+
+.product {
+  font-size: calc(var(--fs-name) * var(--pt));
+  font-weight: bold;
+}
+
+.product-description { font-size: calc(var(--fs-description) * var(--pt)); }
+.producer { font-size: calc(var(--fs-producer) * var(--pt)); }
+.product-size { font-size: calc(var(--fs-size) * var(--pt)); }
+.producer-line { font-size: calc(max(var(--fs-producer), var(--fs-size)) * var(--pt)); }
+
+/* Empty lines still get a line box (zero-width space), so every tag has the
+   same height whatever fields are filled in. */
+.product:empty::before,
+.product-description:empty::before,
+.producer-line::before {
+  content: "\200B";
+}
+
+.product-size {
+  &::before {
+    content: ', ';
+  }
+  &:empty { display: none; }
+}
+.producer:empty + .product-size::before { content: none; }
+
+.product-price {
+  height: min-content;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: 0 calc(2 * var(--mm, 1mm));
+}
+
+.product-price .price-whole {
+  font-size: calc(var(--fs-whole) * var(--pt));
+  font-weight: bold;
+  grid-row: 1 / -1;
+}
+
+.product-price .price-fraction {
+  font-size: calc(var(--fs-fraction) * var(--pt));
+  font-weight: bold;
+}
+
+.product-price .price-unit {
+  font-size: calc(var(--fs-unit) * var(--pt));
+  font-weight: bold;
+  align-self: end;
+
+  &::before {
+    content: '/';
+  }
+  &:empty { display: none; }
+}
+
+.box {
+  background-color: var(--tag-bg);
+  color: var(--tag-fg);
+  padding-inline: calc(5 * var(--mm, 1mm));
+  padding-block: calc(3 * var(--mm, 1mm));
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ───────────── Toast & mobile tabs ───────────── */
+.install-hint {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+#pdf-ready {
+  border: 0;
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 10px 40px rgb(0 0 0 / .3);
+  p { margin: 0 0 16px; font-weight: 600; }
+  &::backdrop { background: rgb(0 0 0 / .35); }
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  background: var(--ink);
+  color: var(--panel);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  z-index: 20;
+}
+#toast.show { opacity: 1; }
+
+.tabs { display: none; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .editor { border-right: 0; padding-bottom: calc(90px + env(safe-area-inset-bottom)); padding-right: max(16px, env(safe-area-inset-right)); }
+  .preview { padding: 0 12px calc(90px + env(safe-area-inset-bottom)); }
+  .app[data-view="editor"] .preview,
+  .app[data-view="preview"] .editor { display: none; }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 10;
+    padding: 8px max(12px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+
+    button { font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); }
+    button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+  }
+}
+
+/* ───────────── Print ───────────── */
+/* @page size is set in #page-size; no margin rule, so the printer’s own margins apply */
+@media print {
+  html, body { background: #fff; }
+  .editor, .preview-head, .tabs, .page-label, #toast, #pdf-ready { display: none !important; }
+  .app { display: block; height: auto; }
+  .app[data-view] .preview { display: block !important; padding: 0; overflow: visible; }
+  .pages { zoom: 1 !important; gap: 0; display: block; }
+  /* 99.8 % so sub-pixel rounding never spills a blank extra page */
+  .page { box-shadow: none; width: 99.8%; margin-inline: auto; break-after: page; break-inside: avoid; }
+  .page:last-child { break-after: auto; }
+  .sheet { outline: none; }
+}
+</style>
+</head>
+<body>
+<div class="app" data-view="editor">
+  <aside class="editor">
+    <header class="toolbar">
+      <div class="title-row">
+        <h1 data-i18n="appTitle">Prisetiketter</h1>
+        <div class="lang" role="group" data-i18n-aria="language">
+          <button type="button" data-lang="sv">SV</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" data-cmd="add" data-i18n="add">+ Add product</button>
+        <button class="btn" data-cmd="print" data-i18n="print">Print</button>
+        <button class="btn" data-cmd="pdf" data-i18n="pdf">Share PDF</button>
+      </div>
+    </header>
+
+    <details class="settings">
+      <summary data-i18n="settings">Paper &amp; style</summary>
+      <label class="row"><span data-i18n="paper">Paper size</span>
+        <select id="paper">
+          <option value="A2">A2 · 420 × 594 mm</option>
+          <option value="A3">A3 · 297 × 420 mm</option>
+          <option value="A4">A4 · 210 × 297 mm</option>
+          <option value="A5">A5 · 148 × 210 mm</option>
+          <option value="A6">A6 · 105 × 148 mm</option>
+        </select>
+      </label>
+      <label class="row"><span data-i18n="bg">Background</span> <input id="bg" type="color"></label>
+      <label class="row"><span data-i18n="fg">Text color</span> <input id="fg" type="color"></label>
+      <label class="row"><span data-i18n="font">Font</span> <select id="font"></select></label>
+      <fieldset>
+        <legend data-i18n="sizes">Text sizes (pt)</legend>
+        <div class="sizes">
+          <label class="row"><span data-i18n="sz.name">Name</span> <input data-size="name" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.description">Description</span> <input data-size="description" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.producer">Producer</span> <input data-size="producer" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.size">Unit size</span> <input data-size="size" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.whole">Price</span> <input data-size="whole" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.fraction">Öre</span> <input data-size="fraction" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+          <label class="row"><span data-i18n="sz.unit">Price per</span> <input data-size="unit" type="number" min="4" max="200" step="0.5" inputmode="decimal"></label>
+        </div>
+      </fieldset>
+      <p class="hint" data-i18n="hint">Tags are packed on the full sheet with a 1 mm gap. When printing, the sheet is scaled down to fit inside the printer’s own margins.</p>
+      <div class="actions">
+        <button class="btn" data-cmd="reset-style" data-i18n="reset">Reset style</button>
+        <button class="btn" data-cmd="export" data-i18n="export">Export</button>
+        <button class="btn" data-cmd="import" data-i18n="import">Import</button>
+        <button class="btn danger" data-cmd="clear" data-i18n="clear">Remove all</button>
+      </div>
+    </details>
+
+    <p id="install-hint" class="hint install-hint" data-i18n="installHint" hidden></p>
+    <div id="products"></div>
+    <p id="empty-editor" class="hint" data-i18n="empty" hidden>No products yet. Add one to get started.</p>
+    <button class="btn add-bottom" data-cmd="add" data-i18n="add">+ Add product</button>
+  </aside>
+
+  <main class="preview">
+    <div class="preview-head">
+      <span id="stats"></span>
+      <span id="warn"></span>
+    </div>
+    <div id="pages" class="pages"></div>
+  </main>
+
+  <nav class="tabs">
+    <button data-view="editor" aria-pressed="true" data-i18n="tabProducts">Products</button>
+    <button data-view="preview" aria-pressed="false">Preview</button>
+  </nav>
+</div>
+
+<div id="measure" class="measure" aria-hidden="true"></div>
+<div id="toast" role="status"></div>
+<dialog id="pdf-ready">
+  <p data-i18n="pdfReady">The PDF is ready.</p>
+  <div class="actions">
+    <button class="btn primary" data-pdf="share" data-i18n="pdfShare">Share</button>
+    <button class="btn" data-pdf="close" data-i18n="close">Close</button>
+  </div>
+</dialog>
+<input id="import-file" type="file" accept="application/json,.json" hidden>
+
+<template id="card-tpl">
+  <article class="card">
+    <div class="card-head">
+      <span class="card-index"></span>
+      <div class="card-actions">
+        <button type="button" data-action="dup" data-i18n="dup">Duplicate</button>
+        <button type="button" data-action="del" class="danger" data-i18n="del">Delete</button>
+      </div>
+    </div>
+    <div class="fields">
+      <label><span data-i18n="f.name">Product name</span><input name="name" autocomplete="off" enterkeyhint="next"></label>
+      <label><span data-i18n="f.description">Description</span><input name="description" autocomplete="off" enterkeyhint="next"></label>
+      <label class="w4"><span data-i18n="f.producer">Producer</span><input name="producer" autocomplete="off" enterkeyhint="next"></label>
+      <label class="w2"><span data-i18n="f.size">Unit size</span><input name="size" autocomplete="off" placeholder="500 g" enterkeyhint="next"></label>
+      <label class="w3"><span data-i18n="f.price">Price (SEK)</span><input name="price" inputmode="decimal" autocomplete="off" data-i18n-placeholder="ph.price" placeholder="49,90" enterkeyhint="next"></label>
+      <label class="w3"><span data-i18n="f.unit">Price per</span><input name="unit" autocomplete="off" data-i18n-placeholder="ph.unit" placeholder="st" enterkeyhint="done"></label>
+    </div>
+  </article>
+</template>
+
+<script>
+(() => {
+  const MM = 96 / 25.4;          // CSS px per mm
+  const GAP_MM = 1;
+  const EPS = 0.01;
+  const STORAGE_KEY = 'prisetiketter.v1';
+  const $ = (s, r = document) => r.querySelector(s);
+
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  /* ───────── Localization ───────── */
+  const I18N = {
+    sv: {
+      appTitle: 'Prisetiketter',
+      language: 'Språk',
+      add: '+ Lägg till vara',
+      print: 'Skriv ut',
+      settings: 'Papper & stil',
+      paper: 'Pappersstorlek',
+      bg: 'Bakgrund',
+      fg: 'Textfärg',
+      font: 'Typsnitt',
+      sizes: 'Textstorlekar (pt)',
+      'sz.name': 'Namn',
+      'sz.description': 'Beskrivning',
+      'sz.producer': 'Producent',
+      'sz.size': 'Storlek',
+      'sz.whole': 'Pris',
+      'sz.fraction': 'Öre',
+      'sz.unit': 'Pris per',
+      hint: 'Etiketterna packas på hela arket med 1 mm mellanrum. Vid utskrift skalas arket ner så att det får plats innanför skrivarens egna marginaler.',
+      reset: 'Återställ stil',
+      export: 'Exportera',
+      import: 'Importera',
+      clear: 'Ta bort alla',
+      empty: 'Inga varor ännu. Lägg till en för att komma igång.',
+      tabProducts: 'Varor',
+      tabPreview: 'Förhandsvisning ({n})',
+      dup: 'Duplicera',
+      del: 'Ta bort',
+      'f.name': 'Varunamn',
+      'f.description': 'Beskrivning',
+      'f.producer': 'Producent',
+      'f.size': 'Storlek',
+      'f.price': 'Pris (kr)',
+      'f.unit': 'Pris per',
+      'ph.price': '49,90',
+      'ph.unit': 'st',
+      tags1: '1 etikett',
+      tagsN: '{n} etiketter',
+      pages1: '1 sida',
+      pagesN: '{n} sidor',
+      stats: '{tags} på {pages}',
+      noTags: 'Inga etiketter att skriva ut',
+      pageLabel: 'Sida {i} av {n} · {tags} · {pct} % täckt',
+      overflow: 'En etikett är större än ett {paper}-ark. Korta texten eller välj ett större papper.',
+      confirmClear: 'Ta bort alla varor?',
+      printBlocked: 'Utskrift är blockerad i den här förhandsvisningen. Öppna filen i Safari för att skriva ut.',
+      imported: '{n} varor importerade',
+      importFail: 'Kunde inte läsa filen',
+      pdf: 'Dela PDF',
+      pdfBuilding: 'Skapar PDF…',
+      pdfReady: 'PDF:en är klar.',
+      pdfShare: 'Dela',
+      close: 'Stäng',
+      pdfFail: 'Kunde inte skapa PDF',
+      pdfName: 'prisetiketter',
+      installHint: 'Installera som app: tryck på Dela-knappen i Safari och välj ”Lägg till på hemskärmen”.',
+    },
+    en: {
+      appTitle: 'Price tags',
+      language: 'Language',
+      add: '+ Add product',
+      print: 'Print',
+      settings: 'Paper & style',
+      paper: 'Paper size',
+      bg: 'Background',
+      fg: 'Text color',
+      font: 'Font',
+      sizes: 'Text sizes (pt)',
+      'sz.name': 'Name',
+      'sz.description': 'Description',
+      'sz.producer': 'Producer',
+      'sz.size': 'Unit size',
+      'sz.whole': 'Price',
+      'sz.fraction': 'Decimals',
+      'sz.unit': 'Price per',
+      hint: 'Tags are packed on the full sheet with a 1 mm gap. When printing, the sheet is scaled down to fit inside the printer’s own margins.',
+      reset: 'Reset style',
+      export: 'Export',
+      import: 'Import',
+      clear: 'Remove all',
+      empty: 'No products yet. Add one to get started.',
+      tabProducts: 'Products',
+      tabPreview: 'Preview ({n})',
+      dup: 'Duplicate',
+      del: 'Delete',
+      'f.name': 'Product name',
+      'f.description': 'Description',
+      'f.producer': 'Producer',
+      'f.size': 'Unit size',
+      'f.price': 'Price (SEK)',
+      'f.unit': 'Price per',
+      'ph.price': '49.90',
+      'ph.unit': 'pc',
+      tags1: '1 tag',
+      tagsN: '{n} tags',
+      pages1: '1 page',
+      pagesN: '{n} pages',
+      stats: '{tags} on {pages}',
+      noTags: 'No tags to print',
+      pageLabel: 'Page {i} of {n} · {tags} · {pct}% covered',
+      overflow: 'A tag is larger than an {paper} sheet. Shorten its text or use a larger paper size.',
+      confirmClear: 'Remove all products?',
+      printBlocked: 'Printing is blocked in this preview. Open the file in Safari to print.',
+      imported: 'Imported {n} products',
+      importFail: 'Could not read that file',
+      pdf: 'Share PDF',
+      pdfBuilding: 'Creating PDF…',
+      pdfReady: 'The PDF is ready.',
+      pdfShare: 'Share',
+      close: 'Close',
+      pdfFail: 'Could not create the PDF',
+      pdfName: 'price-tags',
+      installHint: 'Install as an app: tap the Share button in Safari and choose “Add to Home Screen”.',
+    },
+  };
+  let lang = 'en';
+  const t = (key, vars = {}) =>
+    String(I18N[lang][key] ?? I18N.en[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  const tagCount = n => (n === 1 ? t('tags1') : t('tagsN', { n }));
+  const pageCount = n => (n === 1 ? t('pages1') : t('pagesN', { n }));
+
+  function translate(root) {
+    root.querySelectorAll('[data-i18n]').forEach(e => { e.textContent = t(e.dataset.i18n); });
+    root.querySelectorAll('[data-i18n-placeholder]').forEach(e => { e.placeholder = t(e.dataset.i18nPlaceholder); });
+    root.querySelectorAll('[data-i18n-aria]').forEach(e => { e.setAttribute('aria-label', t(e.dataset.i18nAria)); });
+  }
+
+  const sample = () => [
+    { name: 'Bryggkaffe', description: 'Mellanrost, ekologiskt', producer: 'Kustrosteriet', size: '450 g', price: '64,90', unit: 'st' },
+    { name: 'Surdegsbröd', description: 'Råg & dinkel', producer: 'Hamnbageriet', size: '800 g', price: '59', unit: 'st' },
+    { name: 'Räkor', description: 'Nykokta, oskalade', producer: 'Västkustfisk', size: '', price: '349', unit: 'kg' },
+    { name: 'Äppelmust', description: '', producer: 'Gårdsmusteriet', size: '75 cl', price: '42,50', unit: 'st' },
+    { name: 'Hjortronsylt', description: 'Handplockade bär', producer: 'Fjällskafferiet', size: '250 g', price: '119', unit: 'st' },
+  ].map(normalize);
+
+  function normalize(p = {}) {
+    const s = v => (v == null ? '' : String(v));
+    return {
+      id: uid(),
+      name: s(p.name), description: s(p.description), producer: s(p.producer),
+      size: s(p.size), price: s(p.price), unit: s(p.unit),
+    };
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      return {
+        lang: d.lang,
+        settings: normSettings(d.settings),
+        products: Array.isArray(d.products) ? d.products.map(normalize) : [],
+      };
+    } catch { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+  }
+  function num(v, d) { const n = parseFloat(v); return Number.isFinite(n) ? n : d; }
+
+  const PAPERS = { A2: [420, 594], A3: [297, 420], A4: [210, 297], A5: [148, 210], A6: [105, 148] };
+  const SYSTEM_FONT = 'System (SF Pro)';
+  const FONTS = [SYSTEM_FONT, 'Open Sans', 'Inter', 'Roboto', 'Roboto Condensed', 'Lato', 'Source Sans 3',
+    'Work Sans', 'IBM Plex Sans', 'IBM Plex Sans Condensed', 'Nunito Sans', 'Montserrat', 'Barlow',
+    'Barlow Condensed', 'Archivo Narrow', 'PT Sans Narrow', 'Oswald'];
+  const DEFAULT_SIZES = { name: 22, description: 18, producer: 18, size: 18, whole: 55, fraction: 22, unit: 15 };
+  const DEFAULT_STYLE = { bg: '#000000', fg: '#ffffff', font: 'Open Sans', sizes: DEFAULT_SIZES };
+
+  function normSettings(x = {}) {
+    const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(v) ? v : d);
+    const sizes = {};
+    for (const [k, d] of Object.entries(DEFAULT_SIZES)) sizes[k] = Math.min(200, Math.max(4, num(x.sizes?.[k], d)));
+    return {
+      paper: PAPERS[x.paper] ? x.paper : 'A4',
+      bg: hex(x.bg === '#20262e' ? undefined : x.bg, DEFAULT_STYLE.bg), // #20262e was the previous default
+      fg: hex(x.fg, DEFAULT_STYLE.fg),
+      font: FONTS.includes(x.font) ? x.font : DEFAULT_STYLE.font,
+      sizes,
+    };
+  }
+
+  let state = load() || { settings: normSettings(), products: sample() };
+  let lastCount = 0;
+
+  function setLang(l) {
+    lang = I18N[l] ? l : 'en';
+    state.lang = lang;
+    document.documentElement.lang = lang;
+    document.title = t('appTitle');
+    translate(document);
+    translate($('#card-tpl').content);
+    $('.tabs [data-view="preview"]').textContent = t('tabPreview', { n: lastCount });
+    document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  }
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    setLang(b.dataset.lang);
+    renderEditor();
+    layout();
+    save();
+  }));
+
+  /* ───────── Tag rendering ───────── */
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function priceParts(raw) {
+    const str = String(raw ?? '').trim();
+    const s = str.replace(/[\s\u00a0]/g, '').replace(',', '.').replace(/(kr|sek|:-)$/i, '');
+    if (s === '' || !Number.isFinite(Number(s))) return { whole: str || '–', frac: '' };
+    const cents = Math.round(Number(s) * 100);
+    const whole = Math.trunc(cents / 100);
+    const rest = Math.abs(cents % 100);
+    return {
+      whole: whole.toLocaleString('sv-SE'),
+      frac: rest ? String(rest).padStart(2, '0') : '',
+    };
+  }
+
+  function makeTag(p) {
+    const box = el('div', 'box price-tag');
+    box.append(el('p', 'product', p.name), el('p', 'product-description', p.description));
+    const line = el('p', 'producer-line');
+    line.append(el('span', 'producer', p.producer), el('span', 'product-size', p.size));
+    const { whole, frac } = priceParts(p.price);
+    const price = el('div', 'product-price');
+    price.append(el('span', 'price-whole', whole), el('span', 'price-fraction', frac), el('span', 'price-unit', p.unit));
+    box.append(line, price);
+    return box;
+  }
+
+  function measureAll() {
+    const m = $('#measure');
+    m.replaceChildren();
+    const pairs = state.products.map(p => { const t = makeTag(p); m.append(t); return [p.id, t]; });
+    const sizes = new Map();
+    for (const [id, t] of pairs) {
+      const r = t.getBoundingClientRect();
+      sizes.set(id, { w: Math.ceil(r.width * 100) / 100, h: Math.ceil(r.height * 100) / 100 });
+    }
+    m.replaceChildren();
+    return sizes;
+  }
+
+  function buildItems(sizes) {
+    return state.products.map(p => ({ pid: p.id, ...sizes.get(p.id) }));
+  }
+
+  /* ───────── Packing ─────────
+     All tags share one height, so this is 1D bin packing: each row is a bin
+     as wide as the paper, each tag takes its width + the 1 mm gap. Rows are filled one at
+     a time, anchored on the widest remaining tag, with the subset of the rest
+     that fills the row as completely as possible (exact subset-sum at 0.1 mm
+     resolution). Pages then hold a fixed number of rows. */
+  function area() {
+    const [w, h] = PAPERS[state.settings.paper];
+    return { W: w * MM, H: h * MM, G: GAP_MM * MM };
+  }
+
+  function pack(items) {
+    if (!items.length) return { pages: [], overflow: false };
+    const { W, H, G } = area();
+    const Q = 0.1 * MM;
+    const cap = Math.floor((W + G) / Q + 1e-6);
+    const h = Math.max(...items.map(it => it.h));
+    const rowsPerPage = Math.max(1, Math.floor((H + G) / (h + G) + 1e-6));
+    let overflow = h > H + EPS;
+
+    let rem = items.map(it => ({ ...it, q: Math.ceil((it.w + G) / Q - 1e-6) })).sort((a, b) => b.q - a.q);
+    const rows = [];
+    while (rem.length) {
+      const anchor = rem[0];
+      const rest = rem.slice(1);
+      const room = cap - anchor.q;
+      if (room < 0) { overflow = true; rows.push([anchor]); rem = rest; continue; }
+      const from = new Int32Array(room + 1).fill(-1);  // item index that reached this sum
+      const prev = new Int32Array(room + 1);
+      from[0] = -2;
+      for (let i = 0; i < rest.length; i++) {
+        const q = rest[i].q;
+        for (let c = room; c >= q; c--) {
+          if (from[c] === -1 && from[c - q] !== -1) { from[c] = i; prev[c] = c - q; }
+        }
+      }
+      let c = room;
+      while (from[c] === -1) c--;
+      const row = [anchor];
+      const used = new Set();
+      while (c > 0) { used.add(from[c]); row.push(rest[from[c]]); c = prev[c]; }
+      rows.push(row.sort((a, b) => b.q - a.q));
+      rem = rest.filter((_, i) => !used.has(i));
+    }
+
+    const pages = [];
+    for (let i = 0; i < rows.length; i += rowsPerPage) pages.push(rows.slice(i, i + rowsPerPage));
+    return { pages, overflow };
+  }
+
+  /* ───────── Preview rendering ───────── */
+  function renderPages(result) {
+    const host = $('#pages');
+    host.replaceChildren();
+    const { W, H } = area();
+    const pages = result.pages.length ? result.pages : [[]];
+    const byId = new Map(state.products.map(p => [p.id, p]));
+    const cache = new Map();
+
+    pages.forEach((pg, i) => {
+      const tags = pg.flat();
+      const used = tags.reduce((s, t) => s + t.w * t.h, 0) / (W * H);
+      const label = el('div', 'page-label',
+        t('pageLabel', { i: i + 1, n: pages.length, tags: tagCount(tags.length), pct: Math.round(used * 100) }));
+      const page = el('section', 'page');
+      const sheet = el('div', 'sheet');
+      for (const r of pg) {
+        const row = el('div', 'row');
+        for (const t of r) {
+          if (!cache.has(t.pid)) cache.set(t.pid, makeTag(byId.get(t.pid)));
+          row.append(cache.get(t.pid).cloneNode(true));
+        }
+        sheet.append(row);
+      }
+      page.append(sheet);
+      host.append(label, page);
+    });
+
+    const count = result.pages.reduce((s, p) => s + p.flat().length, 0);
+    $('#stats').textContent = count
+      ? t('stats', { tags: tagCount(count), pages: pageCount(result.pages.length) })
+      : t('noTags');
+    $('#warn').textContent = result.overflow ? t('overflow', { paper: state.settings.paper }) : '';
+    lastCount = count;
+    $('.tabs [data-view="preview"]').textContent = t('tabPreview', { n: count });
+    updateZoom();
+  }
+
+  function layout() {
+    clearTimeout(timer);
+    renderPages(pack(buildItems(measureAll())));
+  }
+
+  let timer;
+  function schedule() {
+    save();
+    clearTimeout(timer);
+    timer = setTimeout(layout, 120);
+  }
+
+  function updateZoom() {
+    const pv = $('.preview');
+    const cs = getComputedStyle(pv);
+    const avail = pv.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if (avail <= 0) return;
+    $('#pages').style.setProperty('--zoom', Math.min(1, avail / area().W).toFixed(4));
+  }
+
+  /* ───────── Editor ───────── */
+  function renderEditor() {
+    const list = $('#products');
+    const tpl = $('#card-tpl').content.firstElementChild;
+    list.replaceChildren(...state.products.map((p, i) => {
+      const card = tpl.cloneNode(true);
+      card.dataset.id = p.id;
+      card.querySelector('.card-index').textContent = `#${i + 1}`;
+      card.querySelectorAll('[name]').forEach(inp => { inp.value = p[inp.name]; });
+      return card;
+    }));
+    $('#empty-editor').hidden = state.products.length > 0;
+  }
+
+  const findProduct = node => {
+    const card = node.closest('.card');
+    return card && state.products.find(p => p.id === card.dataset.id);
+  };
+
+  $('#products').addEventListener('input', e => {
+    const p = findProduct(e.target);
+    if (!p || !e.target.name) return;
+    p[e.target.name] = e.target.value;
+    schedule();
+  });
+
+  $('#products').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const p = findProduct(btn);
+    if (!p) return;
+    switch (btn.dataset.action) {
+      case 'dup': {
+        const i = state.products.indexOf(p);
+        state.products.splice(i + 1, 0, { ...p, id: uid() });
+        renderEditor(); schedule(); break;
+      }
+      case 'del':
+        state.products = state.products.filter(x => x !== p);
+        renderEditor(); schedule(); break;
+    }
+  });
+
+  function addProduct() {
+    const p = normalize();
+    state.products.push(p);
+    renderEditor();
+    setView('editor');
+    const card = $(`.card[data-id="${p.id}"]`);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.querySelector('[name=name]').focus({ preventScroll: true });
+    schedule();
+  }
+
+  /* ───────── Settings, commands, views ───────── */
+  /* Fonts other than the system font are loaded from Google Fonts on demand. */
+  const loadedFonts = new Set(['Open Sans']);
+  function ensureFont(name) {
+    if (name === SYSTEM_FONT || loadedFonts.has(name)) return Promise.resolve();
+    loadedFonts.add(name);
+    return new Promise(resolve => {
+      const link = el('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, '+')}:wght@400;700&display=swap`;
+      link.onload = link.onerror = resolve;
+      document.head.append(link);
+    }).then(() => Promise.allSettled([
+      document.fonts.load(`700 22pt "${name}"`),
+      document.fonts.load(`400 18pt "${name}"`),
+    ]));
+  }
+
+  function applySettings() {
+    const s = state.settings;
+    const root = document.documentElement.style;
+    const [w, h] = PAPERS[s.paper];
+    root.setProperty('--paper-w', w);
+    root.setProperty('--paper-h', h);
+    $('#page-size').textContent = `@page { size: ${w}mm ${h}mm; }`;
+    root.setProperty('--tag-bg', s.bg);
+    root.setProperty('--tag-fg', s.fg);
+    root.setProperty('--tag-font', s.font === SYSTEM_FONT ? '-apple-system, system-ui, sans-serif' : `"${s.font}", sans-serif`);
+    for (const [k, v] of Object.entries(s.sizes)) root.setProperty(`--fs-${k}`, v);
+
+    $('#paper').value = s.paper;
+    $('#bg').value = s.bg;
+    $('#fg').value = s.fg;
+    $('#font').value = s.font;
+    document.querySelectorAll('[data-size]').forEach(i => { if (document.activeElement !== i) i.value = s.sizes[i.dataset.size]; });
+    ensureFont(s.font).then(() => schedule());
+  }
+
+  $('#font').append(...FONTS.map(f => { const o = el('option', null, f); o.value = f; return o; }));
+
+  $('.settings').addEventListener('input', e => {
+    const t = e.target, s = state.settings;
+    if (t.id === 'paper') s.paper = t.value;
+    else if (t.id === 'bg') s.bg = t.value;
+    else if (t.id === 'fg') s.fg = t.value;
+    else if (t.id === 'font') s.font = t.value;
+    else if (t.dataset.size) {
+      const v = parseFloat(String(t.value).replace(',', '.'));
+      if (!(v >= 4 && v <= 200)) return;
+      s.sizes[t.dataset.size] = v;
+    } else return;
+    applySettings();
+    schedule();
+  });
+
+  function setView(v) {
+    $('.app').dataset.view = v;
+    document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+    if (v === 'preview') requestAnimationFrame(updateZoom);
+  }
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+  document.addEventListener('click', e => {
+    const cmd = e.target.closest('[data-cmd]')?.dataset.cmd;
+    if (!cmd) return;
+    if (cmd === 'add') addProduct();
+    if (cmd === 'print') printPages();
+    if (cmd === 'pdf') sharePdf();
+    if (cmd === 'export') exportJson();
+    if (cmd === 'reset-style') { state.settings = normSettings({ paper: state.settings.paper }); applySettings(); schedule(); }
+    if (cmd === 'import') $('#import-file').click();
+    if (cmd === 'clear' && confirm(t('confirmClear'))) { state.products = []; renderEditor(); schedule(); }
+  });
+
+  /* iOS Safari only opens the print sheet when print() runs synchronously
+     inside the tap handler, so no timers or awaits before it. */
+  const STANDALONE = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+
+  function printPages() {
+    layout();
+    // In a home-screen app window.print() may silently do nothing, so print
+    // through the share sheet instead (it has Print, Save to Files, AirDrop).
+    if (STANDALONE) return sharePdf();
+    window.print();
+    let embedded = true;
+    try { embedded = window.top !== window.self; } catch {}
+    if (embedded) toast(t('printBlocked'));
+  }
+
+  /* ───────── PDF export ─────────
+     Each sheet is drawn onto a canvas at up to 300 dpi from the laid-out DOM
+     (box rectangles, text at its exact baseline, ::before separators), encoded
+     as JPEG and wrapped in a minimal PDF with the paper's exact page size. */
+  async function buildPdf() {
+    layout();
+    await document.fonts.ready;
+    const [pw, ph] = PAPERS[state.settings.paper];
+    const inches = (pw / 25.4) * (ph / 25.4);
+    const dpi = Math.min(300, Math.floor(Math.sqrt(16e6 / inches))); // stay under iOS canvas limits
+    const pxPerMm = dpi / 25.4;
+
+    // Unzoomed copy of the sheets, so measurements are in plain CSS px.
+    const host = el('div');
+    host.style.cssText = 'position:absolute;left:-100000px;top:0;';
+    host.append(...[...document.querySelectorAll('#pages .page')].map(p => p.cloneNode(true)));
+    document.body.append(host);
+    const images = [];
+    try {
+      for (const page of host.querySelectorAll('.page')) {
+        const pr = page.getBoundingClientRect();
+        const k = pr.width ? (pw * pxPerMm) / pr.width : 1;
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(pw * pxPerMm);
+        cv.height = Math.round(ph * pxPerMm);
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.setTransform(k, 0, 0, k, -pr.left * k, -pr.top * k);
+        ctx.textBaseline = 'alphabetic';
+        for (const box of page.querySelectorAll('.box')) {
+          const r = box.getBoundingClientRect();
+          ctx.fillStyle = getComputedStyle(box).backgroundColor;
+          ctx.fillRect(r.left, r.top, r.width, r.height);
+          for (const n of box.querySelectorAll('.product, .product-description, .producer, .product-size, .price-whole, .price-fraction, .price-unit')) {
+            const s = getComputedStyle(n);
+            if (s.display === 'none' || !n.textContent) continue;
+            const rg = document.createRange();
+            rg.selectNodeContents(n);
+            const tr = rg.getBoundingClientRect();
+            const probe = el('span');
+            probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+            n.append(probe);
+            const base = probe.getBoundingClientRect().bottom;
+            probe.remove();
+            ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+            ctx.fillStyle = s.color;
+            ctx.fillText(n.textContent, tr.left, base);
+            // ::before separators (", " before the unit size, "/" before the unit)
+            const before = getComputedStyle(n, '::before').content;
+            const pre = /^["'](.*)["']$/.exec(before || '')?.[1]?.replace(/​/g, '');
+            if (pre) ctx.fillText(pre, tr.left - ctx.measureText(pre).width, base);
+          }
+        }
+        const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.95));
+        images.push({ bytes: new Uint8Array(await blob.arrayBuffer()), w: cv.width, h: cv.height });
+        cv.width = cv.height = 0; // release canvas memory early on iOS
+      }
+    } finally {
+      host.remove();
+    }
+    const pt = mm => +(mm * 72 / 25.4).toFixed(2);
+    return pdfFromJpegs(images, pt(pw), pt(ph));
+  }
+
+  function pdfFromJpegs(images, wPt, hPt) {
+    const enc = new TextEncoder();
+    const parts = [], offsets = [];
+    let len = 0;
+    const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+    const obj = (id, write) => { offsets[id] = len; push(`${id} 0 obj\n`); write(); push('\nendobj\n'); };
+    push('%PDF-1.4\n%âãÏÓ\n');
+    obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
+    obj(2, () => push(`<< /Type /Pages /Count ${images.length} /Kids [${images.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] >>`));
+    images.forEach((im, i) => {
+      const id = 3 + 3 * i;
+      obj(id, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${wPt} ${hPt}] /Resources << /XObject << /Im0 ${id + 2} 0 R >> >> /Contents ${id + 1} 0 R >>`));
+      const content = `q ${wPt} 0 0 ${hPt} 0 0 cm /Im0 Do Q`;
+      obj(id + 1, () => { push(`<< /Length ${content.length} >>\nstream\n`); push(content); push('\nendstream'); });
+      obj(id + 2, () => {
+        push(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>\nstream\n`);
+        push(im.bytes);
+        push('\nendstream');
+      });
+    });
+    const xref = len, size = 3 + 3 * images.length;
+    let table = `xref\n0 ${size}\n0000000000 65535 f \n`;
+    for (let id = 1; id < size; id++) table += `${String(offsets[id]).padStart(10, '0')} 00000 n \n`;
+    push(table + `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+
+  let pdfFile = null, pdfBusy = false;
+  async function sharePdf() {
+    if (pdfBusy) return;
+    pdfBusy = true;
+    toast(t('pdfBuilding'));
+    try {
+      pdfFile = new File([await buildPdf()], `${t('pdfName')}.pdf`, { type: 'application/pdf' });
+    } catch (e) {
+      console.error(e);
+      return toast(t('pdfFail'));
+    } finally {
+      pdfBusy = false;
+    }
+    await offerPdf();
+  }
+
+  // Sharing needs a recent tap; if building the PDF took too long, ask for a new one.
+  async function offerPdf() {
+    if (navigator.canShare?.({ files: [pdfFile] })) {
+      try {
+        await navigator.share({ files: [pdfFile], title: pdfFile.name });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        if (e.name === 'NotAllowedError') return $('#pdf-ready').showModal();
+      }
+    }
+    downloadFile(pdfFile);
+  }
+
+  function downloadFile(file) {
+    const a = el('a');
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+
+  $('#pdf-ready').addEventListener('click', e => {
+    const act = e.target.closest('[data-pdf]')?.dataset.pdf;
+    if (!act) return;
+    $('#pdf-ready').close();
+    if (act === 'share' && pdfFile) {
+      if (navigator.canShare?.({ files: [pdfFile] })) navigator.share({ files: [pdfFile], title: pdfFile.name }).catch(() => {});
+      else downloadFile(pdfFile);
+    }
+  });
+
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = el('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'prisetiketter.json';
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  $('#import-file').addEventListener('change', async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const d = JSON.parse(await file.text());
+      const list = Array.isArray(d) ? d : d.products;
+      if (!Array.isArray(list)) throw new Error();
+      state.products = list.map(normalize);
+      if (d.settings) state.settings = normSettings(d.settings);
+      applySettings(); renderEditor(); schedule();
+      toast(t('imported', { n: state.products.length }));
+    } catch { toast(t('importFail')); }
+  });
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  new ResizeObserver(updateZoom).observe($('.preview'));
+  window.addEventListener('beforeprint', layout);
+
+  /* ───────── PWA ───────── */
+  const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  $('#install-hint').hidden = !(IOS && !STANDALONE);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  /* ───────── Boot ───────── */
+  setLang(state.lang || ((navigator.languages?.[0] || navigator.language || '').toLowerCase().startsWith('sv') ? 'sv' : 'en'));
+  applySettings();
+  renderEditor();
+  layout();
+  Promise.allSettled([
+    document.fonts.load('700 22pt "Open Sans"'),
+    document.fonts.load('400 18pt "Open Sans"'),
+  ]).then(() => document.fonts.ready).then(() => layout());
+  document.fonts.addEventListener?.('loadingdone', () => schedule());
+})();
+</script>
+</body>
+</html>
